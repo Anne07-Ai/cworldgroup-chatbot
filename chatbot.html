@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>C World Group Chatbot</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: Arial, sans-serif; }
+
+#cw-bubble {
+  position: fixed; bottom: 24px; right: 24px;
+  width: 60px; height: 60px; background: #1a5276;
+  border-radius: 50%; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+  z-index: 9999; transition: transform 0.2s;
+}
+#cw-bubble:hover { transform: scale(1.1); }
+#cw-bubble svg { width: 30px; height: 30px; fill: white; }
+#cw-badge {
+  position: absolute; top: -4px; right: -4px;
+  background: #e74c3c; color: white; font-size: 10px;
+  width: 20px; height: 20px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: bold;
+}
+
+#cw-window {
+  position: fixed; bottom: 95px; right: 24px;
+  width: 370px; height: 520px; background: white;
+  border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+  display: none; flex-direction: column;
+  z-index: 9998; overflow: hidden;
+}
+#cw-window.open { display: flex; }
+
+#cw-header {
+  background: linear-gradient(135deg, #1a5276, #2e86c1);
+  color: white; padding: 14px 16px;
+  display: flex; align-items: center; gap: 12px;
+}
+#cw-avatar {
+  width: 40px; height: 40px; background: rgba(255,255,255,0.2);
+  border-radius: 50%; display: flex; align-items: center;
+  justify-content: center; font-weight: bold; font-size: 14px;
+}
+#cw-status {
+  width: 8px; height: 8px; background: #2ecc71;
+  border-radius: 50%; display: inline-block; margin-right: 4px;
+}
+#cw-header-text p:first-child { font-weight: 700; font-size: 14px; }
+#cw-header-text p:last-child { font-size: 11px; opacity: 0.85; }
+#cw-close { margin-left: auto; cursor: pointer; font-size: 22px; opacity: 0.8; }
+#cw-close:hover { opacity: 1; }
+
+#cw-messages {
+  flex: 1; overflow-y: auto; padding: 14px;
+  display: flex; flex-direction: column; gap: 10px;
+  background: #f4f6f8;
+}
+.cw-msg {
+  max-width: 82%; padding: 10px 14px;
+  border-radius: 14px; font-size: 13px; line-height: 1.5;
+}
+.cw-msg.bot {
+  background: white; color: #222; align-self: flex-start;
+  border: 1px solid #e0e0e0; border-bottom-left-radius: 4px;
+}
+.cw-msg.user {
+  background: #1a5276; color: white;
+  align-self: flex-end; border-bottom-right-radius: 4px;
+}
+.cw-msg.typing {
+  background: white; border: 1px solid #e0e0e0;
+  align-self: flex-start; color: #999; font-style: italic;
+}
+
+#cw-quick {
+  padding: 8px 12px; background: white;
+  display: flex; flex-wrap: wrap; gap: 6px;
+  border-top: 1px solid #eee;
+}
+.cw-qbtn {
+  padding: 5px 10px; background: #eaf4fb;
+  color: #1a5276; border: 1px solid #aed6f1;
+  border-radius: 12px; font-size: 11px;
+  cursor: pointer;
+}
+.cw-qbtn:hover { background: #d6eaf8; }
+
+#cw-lead-form {
+  padding: 14px; background: #f8f9fa;
+  border-top: 2px solid #1a5276; display: none;
+}
+#cw-lead-form h4 {
+  font-size: 13px; color: #1a5276;
+  margin-bottom: 10px; font-weight: 700;
+}
+#cw-lead-form input {
+  width: 100%; padding: 8px 10px; margin-bottom: 8px;
+  border: 1px solid #ddd; border-radius: 6px;
+  font-size: 12px; outline: none;
+}
+#cw-lead-form input:focus { border-color: #1a5276; }
+#cw-lead-submit {
+  width: 100%; padding: 10px; background: #1a5276;
+  color: white; border: none; border-radius: 8px;
+  font-size: 13px; cursor: pointer; font-weight: 700;
+}
+#cw-lead-submit:hover { background: #154360; }
+
+#cw-input-area {
+  padding: 12px; background: white;
+  border-top: 1px solid #eee;
+  display: flex; gap: 8px; align-items: center;
+}
+#cw-input {
+  flex: 1; padding: 10px 14px;
+  border: 1px solid #ddd; border-radius: 22px;
+  font-size: 13px; outline: none;
+}
+#cw-input:focus { border-color: #1a5276; }
+#cw-send {
+  width: 38px; height: 38px; background: #1a5276;
+  border: none; border-radius: 50%; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+#cw-send:hover { background: #154360; }
+#cw-send svg { width: 16px; height: 16px; fill: white; }
+</style>
+</head>
+<body>
+
+<div id="cw-bubble" onclick="toggleChat()">
+  <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
+  <div id="cw-badge">1</div>
+</div>
+
+<div id="cw-window">
+  <div id="cw-header">
+    <div id="cw-avatar">CW</div>
+    <div id="cw-header-text">
+      <p>C World Group</p>
+      <p><span id="cw-status"></span>Online · UK Logistics & Courier</p>
+    </div>
+    <span id="cw-close" onclick="toggleChat()">×</span>
+  </div>
+
+  <div id="cw-messages"></div>
+
+  <div id="cw-quick">
+    <span class="cw-qbtn" onclick="quickSend('Do you offer same-day delivery?')">Same-day delivery</span>
+    <span class="cw-qbtn" onclick="quickSend('What areas do you cover?')">UK coverage</span>
+    <span class="cw-qbtn" onclick="quickSend('Can you handle multi-drop routes?')">Multi-drop</span>
+    <span class="cw-qbtn" onclick="quickSend('I want to get a quote')">Get a quote</span>
+  </div>
+
+  <div id="cw-lead-form">
+    <h4>Get a callback from our team:</h4>
+    <input id="lead-name" placeholder="Your full name *" type="text"/>
+    <input id="lead-email" placeholder="Email address *" type="email"/>
+    <input id="lead-phone" placeholder="Phone number *" type="tel"/>
+    <input id="lead-company" placeholder="Company name (optional)" type="text"/>
+    <input id="lead-msg" placeholder="Tell us your requirement" type="text"/>
+    <button id="cw-lead-submit" onclick="submitLead()">Request callback</button>
+  </div>
+
+  <div id="cw-input-area">
+    <input id="cw-input" placeholder="Type your message..."
+      onkeydown="if(event.key==='Enter') sendMessage()"/>
+    <button id="cw-send" onclick="sendMessage()">
+      <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+    </button>
+  </div>
+</div>
+
+<script>
+const API = 'http://localhost:8000';
+let history = [];
+let leadShown = false;
+let msgCount = 0;
+
+function toggleChat() {
+  const win = document.getElementById('cw-window');
+  win.classList.toggle('open');
+  document.getElementById('cw-badge').style.display = 'none';
+  if (win.classList.contains('open') && msgCount === 0) {
+    addMsg('bot', 'Hi! Welcome to C World Group. We offer UK-wide logistics and courier services. How can I help you today?');
+  }
+}
+
+function addMsg(role, text) {
+  const msgs = document.getElementById('cw-messages');
+  const div = document.createElement('div');
+  div.className = `cw-msg ${role}`;
+  div.textContent = text;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+  msgCount++;
+  return div;
+}
+
+function showTyping() {
+  const msgs = document.getElementById('cw-messages');
+  const div = document.createElement('div');
+  div.className = 'cw-msg typing';
+  div.id = 'cw-typing';
+  div.textContent = 'Typing...';
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function removeTyping() {
+  const t = document.getElementById('cw-typing');
+  if (t) t.remove();
+}
+
+async function sendMessage() {
+  const input = document.getElementById('cw-input');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  addMsg('user', text);
+  history.push({ role: 'user', content: text });
+  showTyping();
+  try {
+    const res = await fetch(`${API}/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: text, history: history.slice(-6) })
+    });
+    const data = await res.json();
+    removeTyping();
+    addMsg('bot', data.reply);
+    history.push({ role: 'assistant', content: data.reply });
+    if (msgCount >= 4 && !leadShown) {
+      leadShown = true;
+      setTimeout(() => {
+        document.getElementById('cw-lead-form').style.display = 'block';
+      }, 1000);
+    }
+  } catch(e) {
+    removeTyping();
+    addMsg('bot', 'Sorry, having a technical issue. Please call Lucky on +447775119599 or email admin@cworldgroup.co.uk');
+  }
+}
+
+function quickSend(text) {
+  document.getElementById('cw-input').value = text;
+  sendMessage();
+}
+
+async function submitLead() {
+  const name = document.getElementById('lead-name').value.trim();
+  const email = document.getElementById('lead-email').value.trim();
+  const phone = document.getElementById('lead-phone').value.trim();
+  const company = document.getElementById('lead-company').value.trim();
+  const msg = document.getElementById('lead-msg').value.trim();
+  if (!name || !email || !phone) {
+    alert('Please fill in your name, email and phone number.');
+    return;
+  }
+  try {
+    await fetch(`${API}/lead`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, phone, company, message: msg })
+    });
+    document.getElementById('cw-lead-form').style.display = 'none';
+    addMsg('bot', `Thank you ${name}! We have your details and Lucky will call you back shortly on ${phone}.`);
+  } catch(e) {
+    addMsg('bot', 'Could not save details right now. Please call Lucky directly on +447775119599.');
+  }
+}
+</script>
+</body>
+</html>
